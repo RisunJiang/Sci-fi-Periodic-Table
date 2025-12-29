@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Sci-Fi Periodic Table v7.0 (Wiki-Deep-Data)</title>
+    <style>
+        :root {
+            --neon-blue: #00f3ff;
+            --neon-pink: #ff00ff;
+            --neon-amber: #ffae00;
+            --holo-bg: rgba(8, 12, 18, 0.95);
+            --border-color: rgba(0, 243, 255, 0.2);
+            --text-main: #e0e0e0;
+        }
+
+        body {
+            background-color: #000;
+            background-image: 
+                radial-gradient(circle at 50% 50%, #0d0d15 0%, #000 100%),
+                linear-gradient(rgba(255, 255, 255, 0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.02) 1px, transparent 1px);
+            background-size: 100% 100%, 60px 60px, 60px 60px;
+            color: white;
+            font-family: 'Segoe UI', 'Roboto', monospace;
+            height: 100vh;
+            margin: 0;
+            overflow: hidden;
+            perspective: 1600px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .scene {
+            position: relative;
+            width: 80vw;
+            height: 65vh;
+            transform-style: preserve-3d;
+            transform: rotateX(5deg); 
+            transition: transform 0.1s ease-out;
+        }
+
+        .table-grid {
+            display: grid;
+            grid-template-columns: repeat(18, 1fr);
+            grid-template-rows: repeat(10, 1fr);
+            width: 100%;
+            height: 100%;
+            gap: 1px;
+            transform-style: preserve-3d;
+        }
+
+        .element {
+            position: relative;
+            background: rgba(0, 20, 35, 0.5);
+            border: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 3px;
+            cursor: pointer;
+            transition: all 0.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            box-sizing: border-box;
+            backdrop-filter: blur(2px);
+        }
+
+        .element:hover {
+            background: rgba(0, 243, 255, 0.25);
+            border-color: var(--neon-blue);
+            transform: translateZ(20px) scale(1.15);
+            box-shadow: 0 0 25px rgba(0, 243, 255, 0.4);
+            z-index: 100;
+        }
+
+        .top { display: flex; justify-content: space-between; font-size: 0.5vw; color: var(--neon-blue); opacity: 0.9; }
+        .mid { text-align: center; margin-top: 0; display: flex; align-items: center; justify-content: center; gap: 2px;}
+        .symbol { font-size: 1.1vw; font-weight: 800; color: #fff; text-shadow: 0 0 5px rgba(255,255,255,0.3); }
+        .cn { font-size: 0.7vw; color: #ddd; font-weight: bold; margin-top: 4px;}
+        .bot { text-align: center; font-size: 0.35vw; text-transform: uppercase; color: rgba(255,255,255,0.6); letter-spacing: 0.5px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+        .element::after {
+            content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 2px;
+            background: currentColor; opacity: 0.8;
+        }
+        .cat-alkali { color: #ff4444; } .cat-alkaline { color: #ffaa00; }
+        .cat-transition { color: #ffff00; } .cat-post-transition { color: #00ff44; }
+        .cat-metalloid { color: #00ffaa; } .cat-nonmetal { color: #0088ff; }
+        .cat-halogen { color: #aa00ff; } .cat-noble { color: #ff00ff; }
+        .cat-lanthanide { color: #eee; } .cat-actinide { color: #ff9999; }
+
+        /* --- HOLOGRAPHIC SCREEN --- */
+        #holo-screen {
+            position: absolute;
+            /* Top: -11% (Moved down 1 cell) */
+            /* Left: Shifted left by ~1 cell width */
+            top: -11%; 
+            left: calc(50% - 4.5vw); 
+            transform: translateX(-50%) perspective(1000px) rotateX(90deg) scale(0.8);
+            width: 580px;
+            min-height: 200px;
+            height: auto;
+            
+            background: var(--holo-bg);
+            border: 1px solid var(--neon-blue);
+            border-top: 4px solid var(--neon-blue);
+            box-shadow: 0 15px 50px rgba(0, 0, 0, 0.9), 0 0 30px rgba(0, 243, 255, 0.15);
+            backdrop-filter: blur(15px);
+            
+            opacity: 0;
+            pointer-events: none;
+            transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+            z-index: 500;
+            border-radius: 6px;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        #holo-screen.active {
+            transform: translateX(-50%) perspective(1000px) rotateX(0deg) scale(1);
+            opacity: 1;
+            /* Active pos slightly lower for float effect */
+            top: -8%;
+        }
+
+        #holo-screen::before {
+            content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 20px;
+            background: linear-gradient(to bottom, transparent, var(--neon-blue), transparent);
+            opacity: 0; pointer-events: none;
+        }
+        #holo-screen.active::before { animation: scanLine 1.5s ease-out 1 forwards; }
+        @keyframes scanLine { 0% { top: -20px; opacity: 0; } 10% { opacity: 0.2; } 100% { top: 120%; opacity: 0; } }
+
+        .holo-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 20px;
+            background: linear-gradient(90deg, rgba(0,243,255,0.15), transparent);
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .holo-big-sym { font-size: 2.2rem; font-weight: 900; color: var(--neon-blue); line-height: 1; text-shadow: 0 0 10px var(--neon-blue); }
+        .holo-names { text-align: right; }
+        .holo-cn-name { font-size: 1.2rem; font-weight: bold; color: white; }
+        .holo-en-name { font-size: 0.8rem; color: var(--neon-amber); letter-spacing: 2px; font-weight: bold;}
+
+        .holo-body { padding: 15px 20px; font-size: 0.8rem; line-height: 1.5; color: #ccc; }
+        
+        .data-row { display: grid; grid-template-columns: 80px 1fr; margin-bottom: 8px; align-items: flex-start;}
+        .lbl { color: var(--neon-blue); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; padding-top: 2px;}
+        .val { color: var(--text-main); text-shadow: 0 0 1px rgba(0,0,0,0.8); }
+        
+        .usage-box { 
+            margin-top: 12px; 
+            border-top: 1px dashed rgba(255,255,255,0.2); 
+            padding-top: 10px; 
+            background: rgba(255, 174, 0, 0.05);
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .usage-val { color: var(--neon-amber); font-style: normal; font-weight: 500;}
+        
+        .click-hint {
+            position: absolute; bottom: 5px; right: 10px;
+            font-size: 0.6rem; color: rgba(255,255,255,0.4);
+            text-transform: uppercase; letter-spacing: 1px;
+        }
+
+        .gap-label {
+            display: flex; align-items: center; justify-content: center;
+            color: rgba(255,255,255,0.2); font-size: 10px;
+            border: 1px dashed rgba(255,255,255,0.1);
+            margin: 2px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="scene" id="scene">
+        <div id="holo-screen">
+            <div class="holo-header">
+                <div class="holo-big-sym" id="p-sym">Fe</div>
+                <div class="holo-names">
+                    <div class="holo-cn-name" id="p-cn">铁</div>
+                    <div class="holo-en-name" id="p-en">IRON</div>
+                </div>
+            </div>
+            <div class="holo-body">
+                <div class="data-row"><span class="lbl">物理特性</span><span class="val" id="p-phys">...</span></div>
+                <div class="data-row"><span class="lbl">化学特性</span><span class="val" id="p-chem">...</span></div>
+                <div class="data-row"><span class="lbl">生物作用</span><span class="val" id="p-bio">...</span></div>
+                <div class="usage-box">
+                    <div class="data-row" style="margin:0; grid-template-columns: 80px 1fr;">
+                        <span class="lbl" style="color:var(--neon-amber)">主要用途</span>
+                        <span class="usage-val" id="p-use">...</span>
+                    </div>
+                </div>
+                <div class="click-hint">Click for Wiki</div>
+            </div>
+        </div>
+        <div class="table-grid" id="grid"></div>
+    </div>
+
+    <script>
+        // --- ULTIMATE DATASET (Wiki-Verified) ---
+        // P=Phys, C=Chem, B=Bio, U=Use
+        const elementDetails = {
+            1: {P:"无色无味气体，宇宙中丰度最高(75%)，密度最小的物质。", C:"极易燃，与氧气混合遇火爆炸；强还原剂。", B:"构成水和生物大分子(蛋白质/DNA)，生命基石。", U:"火箭燃料(液氢)，氢燃料电池车，合成氨(化肥)，人造黄油加氢。"},
+            2: {P:"无色惰性气体，沸点最低(-269°C)，具有超流体性质。", C:"极度惰性，标准条件下不形成化合物。", B:"无生物作用，吸入会改变声带共振导致变声。", U:"核磁共振(MRI)超导磁体冷却，深海潜水混合气，气球，硬盘填充气。"},
+            3: {P:"银白色软金属，密度最小的金属(0.53g/cm³)，浮于煤油。", C:"活泼，遇水生成氢气，燃烧呈深红色。", B:"微量锂能调节神经递质，过量有肾毒性。", U:"锂离子电池(手机/特斯拉)，治疗躁郁症药物(碳酸锂)，航空铝锂合金。"},
+            4: {P:"钢灰色金属，极轻且硬，透X射线能力极强。", C:"表面形成致密氧化膜，抗腐蚀，粉尘剧毒。", B:"剧毒，导致慢性铍肺病，一级致癌物。", U:"詹姆斯·韦伯望远镜镜面，X射线管窗口，核武器反射层，惯性导航陀螺仪。"},
+            5: {P:"黑色或银色固体，硬度极高(仅次于金刚石)。", C:"高温下活泼，能强烈吸收中子。", B:"植物必需微量元素，维持细胞壁结构。", U:"硼硅酸盐玻璃(Pyrex烧杯)，核反应堆控制棒，坦克装甲(碳化硼)，蟑螂药。"},
+            6: {P:"同素异形体：钻石(最硬)、石墨(导电/润滑)、富勒烯。", C:"有机化学核心，能形成极长碳链和复杂分子。", B:"碳基生命核心，构成一切有机生命体。", U:"钻石珠宝，铅笔芯(石墨)，碳纤维(F1赛车/飞机)，活性炭过滤，纳米管。"},
+            7: {P:"无色气体，占大气78%，液氮(-196°C)极冷。", C:"氮氮三键极强，常温下化学性质极稳定。", B:"氨基酸(蛋白质)和核酸(DNA)的关键组分。", U:"液氮冷冻(分子料理/医疗)，合成氨化肥(养活全球)，炸药(TNT)，薯片包装。"},
+            8: {P:"无色气体，液态呈淡蓝色，具有顺磁性(被磁铁吸引)。", C:"强氧化剂，支持燃烧，能与几乎所有元素化合。", B:"有氧呼吸必需，人体质量占比最高(65%)。", U:"医疗急救，炼钢吹氧，火箭推进剂(SpaceX)，臭氧消毒，污水处理。"},
+            9: {P:"淡黄色气体，毒性极大，反应性最强的非金属。", C:"电负性最强，能腐蚀玻璃，甚至能与稀有气体反应。", B:"微量氟化物坚固牙齿/骨骼，过量导致氟骨症。", U:"特氟龙不粘锅，含氟牙膏，原子弹浓缩铀(UF6)，空调制冷剂。"},
+            10: {P:"无色气体，通电时发出明亮的红橙色光。", C:"极度惰性，无已知中性化合物。", B:"无生物作用，高浓度致窒息。", U:"霓虹灯广告招牌，氦氖激光器(条码扫描)，高压电路指示灯。"},
+            11: {P:"银白色软金属，切开迅速氧化变暗。", C:"遇水剧烈反应/爆炸，火焰呈金黄色。", B:"维持细胞外液渗透压，神经脉冲传导必需。", U:"食盐(NaCl)，高速路灯(高压钠灯)，核反应堆液态钠导热剂，靛蓝染料。"},
+            12: {P:"银白色轻金属，燃烧时发出耀眼的白光和紫外线。", C:"能与热水反应，易于加工及回收。", B:"叶绿素中心原子，人体骨骼成分，酶激活剂。", U:"笔记本/相机外壳(镁铝合金)，烟花闪光弹，抗酸胃药(镁乳)，汽车轮毂。"},
+            13: {P:"银白色轻金属，延展性极好，地壳含量最高金属。", C:"表面生成致密氧化膜防锈，两性(溶于酸碱)。", B:"无已知益处，神经毒性争议(与阿尔茨海默相关)。", U:"波音客机机身，易拉罐，高压输电线，厨房铝箔纸，蓝宝石(氧化铝)。"},
+            14: {P:"深灰色晶体，有金属光泽，典型的半导体。", C:"常温稳定，高温下与氧反应生成二氧化硅。", B:"硅藻细胞壁，人体结缔组织微量成分。", U:"计算机芯片(集成电路)，太阳能电池板，玻璃/光纤，硅胶隆胸/手机壳。"},
+            15: {P:"白磷(剧毒/自燃)或红磷(稳定/安全)。", C:"易氧化，燃烧产生五氧化二磷白烟。", B:"骨骼牙齿(磷酸钙)，DNA骨架，ATP能量分子。", U:"火柴盒侧面(红磷)，磷肥，草甘膦农药，OLED屏幕材料，烟幕弹。"},
+            16: {P:"黄色脆性晶体，燃烧有蓝色火焰和窒息臭味。", C:"具有氧化性和还原性，易与金属化合。", B:"氨基酸(半胱氨酸)成分，维持蛋白质结构。", U:"硫酸(工业之母)，汽车轮胎硫化，黑火药，温泉浴，杀菌剂。"},
+            17: {P:"黄绿色气体，密度大于空气，有强烈刺激性。", C:"强氧化剂，遇水生成次氯酸，腐蚀呼吸道。", B:"胃酸(HCl)主要成分，维持体液离子平衡。", U:"自来水/泳池消毒，PVC塑料管，漂白剂，盐酸，杀虫剂(DDT)。"},
+            18: {P:"无色惰性气体，大气中含量第三(约1%)。", C:"极度惰性，比氮气更稳定。", B:"无生物作用，单纯窒息性。", U:"焊接保护气(氩弧焊)，博物馆文件保护，白炽灯填充，双层玻璃隔热。"},
+            19: {P:"银白色软金属，切开后瞬间变紫。", C:"比钠更活泼，遇水立即燃烧爆炸。", B:"维持细胞内液渗透压，控制心跳和肌肉收缩。", U:"钾肥(草木灰)，肥皂，碘化钾(防辐射药)，黑色火药，低钠盐。"},
+            20: {P:"银白色硬金属，燃烧火焰呈砖红色。", C:"活泼金属，能从水中置换氢。", B:"骨骼和牙齿主要成分，血液凝固，肌肉收缩。", U:"水泥混凝土，石膏(绷带/装修)，炼钢脱氧剂，补钙剂。"},
+            21: {P:"银白色轻金属，性质接近铝和钇。", C:"易被氧化，粉末易燃。", B:"无已知作用。", U:"铝钪合金(米格战斗机/高端自行车)，金属卤化物灯(体育场照明)。"},
+            22: {P:"银灰色，强度高，密度低，生物相容性极好。", C:"极抗腐蚀(耐王水/海水)，表面有氧化层。", B:"对人体无毒无排斥反应，骨骼可附着。", U:"人工关节/牙种植体，航空发动机，白色颜料(钛白粉)，苹果手表Ultra。"},
+            23: {P:"银灰色金属，延展性好。", C:"氧化态丰富(+2到+5)，溶液颜色多变。", B:"海鞘等海洋生物血液成分，哺乳动物微量。", U:"钒钢(扳手/工具)，硫酸生产催化剂，钒液流储能电池(大型电站)。"},
+            24: {P:"银白色金属，极硬，光泽度高。", C:"极耐腐蚀(钝化)，六价铬剧毒致癌。", B:"微量三价铬协助胰岛素调节血糖。", U:"不锈钢(添加12%以上)，镀铬(汽车光亮件/水龙头)，校车颜料(铬黄)。"},
+            25: {P:"灰白色脆性金属，似铁。", C:"活泼，在空气中表面氧化。", B:"多种酶的激活剂，骨骼发育必需。", U:"锰钢(碎石机/坦克装甲/铁轨)，干电池(二氧化锰)，易拉罐合金。"},
+            26: {P:"银白色金属，具有铁磁性，地核主要成分。", C:"潮湿空气中易生锈(氧化铁)，变价金属。", B:"血红蛋白核心，负责输送氧气。", U:"建筑钢材(埃菲尔铁塔)，汽车船体，机械制造，磁铁，炒锅。"},
+            27: {P:"硬而有光泽的银灰金属，具有磁性。", C:"耐高温，抗腐蚀。", B:"维生素B12(钴胺素)的核心成分。", U:"喷气发动机涡轮叶片，锂电池正极(钴酸锂)，蓝色颜料(钴蓝)。"},
+            28: {P:"银白色带有微黄光泽，延展性好。", C:"抗氧化，耐碱腐蚀。", B:"某些植物和微生物必需，人体致敏源。", U:"不锈钢，硬币，充电电池(镍氢/镍镉)，吉他弦，电镀防锈。"},
+            29: {P:"紫红色金属，导电导热性仅次于银。", C:"潮湿空气中生成铜绿，有杀菌作用。", B:"软体动物(如章鱼)的蓝色血液(血蓝蛋白)。", U:"电线电缆，电路板，水管，自由女神像(铜绿)，青铜/黄铜。"},
+            30: {P:"蓝白色金属，质脆，常温下表面形成保护膜。", C:"两性金属，溶于酸和强碱。", B:"免疫系统必需，精子活力，DNA聚合酶成分。", U:"镀锌(白铁皮)，黄铜合金，防晒霜(氧化锌)，婴儿爽身粉。"},
+            31: {P:"银色金属，熔点极低(29.7°C)，在手中会融化。", C:"液态范围极宽，能浸润玻璃。", B:"无，镓盐有肾毒性。", U:"半导体(砷化镓)用于LED/雷达，高温温度计，液态金属散热。"},
+            32: {P:"灰白色类金属，性质介于硅和锡之间。", C:"化学性质稳定。", B:"无益，某些有机锗有毒。", U:"光纤通讯(核心掺杂)，红外夜视镜头，太阳能电池，早期晶体管。"},
+            33: {P:"灰色金属状固体，加热直接升华，有大蒜味。", C:"氧化物(砒霜)剧毒。", B:"极微量可能必需，一般视为剧毒致癌物。", U:"半导体掺杂剂，木材防腐(CCA)，历史上的毒药(潘金莲)。"},
+            34: {P:"红色粉末或灰色晶体，具有光敏性(光照导电)。", C:"燃烧发出腐烂萝卜味。", B:"抗氧化酶成分，缺硒导致克山病。", U:"复印机感光鼓，红色玻璃(信号灯)，去屑洗发水，光电池。"},
+            35: {P:"深红棕色挥发性液体，唯一的液态非金属。", C:"强腐蚀性，蒸气剧毒。", B:"微量存在于人体，具体功能不明。", U:"阻燃剂(电子产品)，老式胶卷(溴化银)，油井钻井液，镇静剂。"},
+            36: {P:"无色无味惰性气体。", C:"极难反应，仅在极端条件下生成化合物。", B:"无，具有麻醉性。", U:"高能摄影闪光灯，节能窗户隔热层，氪激光(眼科手术)。"},
+            37: {P:"银白色软金属，极易反应。", C:"遇水爆炸，在空气中自燃。", B:"生物学性质类似钾，会被身体误吸收。", U:"原子钟(GPS卫星定位)，真空管吸气剂，烟花(紫色)。"},
+            38: {P:"银白色软金属，氧化迅速。", C:"燃烧火焰呈深红色，遇水反应。", B:"类似钙，锶-90是核辐射危害物。", U:"红色烟花/信号弹，夜光涂料(铝酸锶)，最精准的原子钟。"},
+            39: {P:"银灰色金属。", C:"属于稀土元素，性质稳定。", B:"无。", U:"红色荧光粉(LED/老式电视)，高温超导体(YBCO)，激光晶体。"},
+            40: {P:"灰白色金属，极抗腐蚀。", C:"性质与钛相似，耐酸。", B:"无毒。", U:"核反应堆燃料包壳(不吸中子)，人造钻石(氧化锆)，陶瓷刀。"},
+            41: {P:"灰色金属，具有超导性。", C:"耐高温，抗腐蚀。", B:"无毒，低致敏性。", U:"MRI超导磁体，特种钢材，人体穿孔饰品(防过敏)，硬币。"},
+            42: {P:"银白色高熔点金属。", C:"极耐酸，耐高温。", B:"固氮酶的关键成分，人体必需微量元素。", U:"高强度钢合金(二战坦克)，火箭发动机，二硫化钼润滑剂。"},
+            43: {P:"银灰色金属，地球上首个被人工制备的元素。", C:"具有放射性。", B:"无天然生物作用。", U:"医学骨骼/心脏扫描示踪剂(Tc-99m)，全球每年数千万次使用。"},
+            44: {P:"硬而脆的银白金属。", C:"极耐腐蚀，催化活性高。", B:"四氧化钌剧毒且具爆炸性。", U:"高可靠性电触点，电阻材料，化工催化剂，钢笔尖(钌合金)。"},
+            45: {P:"稀有银白金属，反射率极高。", C:"极度抗腐蚀，即使在高温下。", B:"无。", U:"汽车尾气催化转化器，探照灯反射镜，镀白金首饰。"},
+            46: {P:"银白色金属，能吸收自身体积900倍的氢气。", C:"良好的催化活性。", B:"无。", U:"汽车尾气净化(三元催化)，牙科烤瓷牙，燃料电池，首饰。"},
+            47: {P:"最白亮金属，导电性、导热性所有金属中第一。", C:"易与硫反应变黑，有杀菌作用。", B:"强效杀菌，无毒但不可代谢(银皮病)。", U:"电子触点，珠宝，镜子涂层，抗菌敷料，太阳能板电极。"},
+            48: {P:"蓝白色软金属，可用刀切。", C:"低熔点，燃烧产物剧毒。", B:"剧毒，在肾脏累积，导致痛痛病。", U:"镍镉充电电池，红色/黄色颜料(梵高向日葵)，核反应堆控制棒。"},
+            49: {P:"极软银色金属，可用指甲划痕，能润湿玻璃。", C:"低温下保持延展性。", B:"无，微毒。", U:"触摸屏导电膜(ITO)，液晶显示器，低熔点焊料，蓝光LED。"},
+            50: {P:"银白金属，极低温下会粉碎(锡疫)。", C:"无毒，抗腐蚀。", B:"无。", U:"食品罐头(马口铁)，焊锡(电子焊接)，青铜合金，浮法玻璃槽。"},
+            51: {P:"蓝白色脆性金属，不导电。", C:"冷却时体积膨胀。", B:"有毒，似砷。", U:"铅酸电池板栅，阻燃剂，子弹铅芯硬化剂，眼药(古代)。"},
+            52: {P:"银白色半金属。", C:"燃烧有腐烂大蒜味。", B:"微毒。", U:"碲化镉太阳能电池，可擦写光盘(CD-RW)，热电材料(制冷片)。"},
+            53: {P:"紫黑色晶体，加热升华成紫色蒸气。", C:"最温和的卤素，遇淀粉变蓝。", B:"甲状腺素的核心成分，缺碘导致大脖子病。", U:"碘酒消毒，食盐添加剂，CT造影剂，LCD偏光片，防辐射药。"},
+            54: {P:"重质无色气体。", C:"能形成氧化物和氟化物。", B:"强效麻醉剂。", U:"离子推进器(卫星引擎)，强力闪光灯，医用麻醉，暗物质探测。"},
+            55: {P:"金黄色液体(熔点28°C)，最活泼金属。", C:"遇空气自燃，遇水剧烈爆炸。", B:"微毒。", U:"原子钟(定义“秒”的标准)，石油钻井液，光电倍增管。"},
+            56: {P:"软金属，燃烧火焰呈绿色。", C:"极易氧化。", B:"可溶性钡盐剧毒，硫酸钡无毒。", U:"钡餐(X光胃肠造影)，绿色烟花，石油钻井泥浆，相纸涂层。"},
+            57: {P:"银白色软金属，稀土之首。", C:"打火时产生火花。", B:"微毒。", U:"混合动力汽车电池，相机高折射率镜头，打火石。"},
+            58: {P:"最丰富的稀土，铁灰色。", C:"易氧化。", B:"低毒。", U:"玻璃抛光粉(手机屏)，汽车尾气催化，自洁烤箱内壁。"},
+            59: {P:"银白色软金属。", C:"形成绿色盐类。", B:"无。", U:"强力磁铁(掺杂)，演播室灯光，护目镜(吸收黄光)。"},
+            60: {P:"银白色金属，稀土磁王。", C:"空气中迅速氧化。", B:"无。", U:"最强磁铁(钕铁硼)用于耳机/电动车，激光器(去除纹身)。"},
+            61: {P:"人造放射性稀土。", C:"发出荧光。", B:"无。", U:"核电池(心脏起搏器/导弹)，夜光粉涂料，测厚仪。"},
+            62: {P:"硬金属，银白色。", C:"中子吸收能力强。", B:"无。", U:"吉他拾音器磁铁，核反应堆控制，癌症药物(Sm-153)。"},
+            63: {P:"最活泼的稀土，空气中自燃。", C:"强荧光性。", B:"无。", U:"红色荧光粉(彩电/手机屏)，欧元纸币防伪，路灯。"},
+            64: {P:"有铁磁性，居里点接近室温。", C:"磁热效应强。", B:"无。", U:"MRI造影剂(磁共振)，磁致冷冰箱，核能数据存储。"},
+            65: {P:"银灰色稀土。", C:"可改变形状。", B:"无。", U:"绿色荧光粉，声纳换能器(Terfenol-D)，X光增感屏。"},
+            66: {P:"银色金属，软。", C:"高磁化率。", B:"无。", U:"硬盘盘片涂层，激光材料，核反应堆控制杆。"},
+            67: {P:"稀土金属。", C:"最高磁矩。", B:"无。", U:"高强度磁铁极靴，外科激光(碎肾结石)，校准分光仪。"},
+            68: {P:"银白色金属。", C:"形成粉红色盐。", B:"无。", U:"光纤放大器(互联网骨干)，激光美容(磨皮)，粉色玻璃。"},
+            69: {P:"最稀有的稀土之一。", C:"X射线源。", B:"无。", U:"便携式X光机，金属卤化物灯，欧元纸币防伪。"},
+            70: {P:"银色金属。", C:"性质似钙。", B:"无。", U:"原子钟(光晶格钟)，不锈钢晶粒细化，应力计。"},
+            71: {P:"最重最硬的稀土。", C:"高密度。", B:"无。", U:"PET扫描仪晶体(癌症检测)，LED灯泡，炼油催化剂。"},
+            72: {P:"银灰色金属，抗腐蚀。", C:"性质与锆极相似。", B:"无。", U:"核潜艇反应堆控制棒，英特尔芯片绝缘层，等离子切割。"},
+            73: {P:"蓝灰色金属，极硬。", C:"完美的生物相容性。", B:"无。", U:"手机电容器(体积小容量大)，头盖骨修复板，人工关节。"},
+            74: {P:"熔点最高的金属(3422°C)，密度与金相近。", C:"极硬，高温下极稳定。", B:"某些古细菌用作酶，高等生物无。", U:"白炽灯丝，坦克穿甲弹，火箭喷嘴，机床切削刀具。"},
+            75: {P:"银白色，熔点极高。", C:"极耐磨损。", B:"无。", U:"喷气发动机涡轮叶片，高温热电偶，钢笔尖。"},
+            76: {P:"密度最大的天然元素(22.59g/cm³)。", C:"硬而脆，粉末易氧化。", B:"四氧化锇剧毒，致盲。", U:"高档钢笔尖，指纹显影粉末，电子显微镜染色。"},
+            77: {P:"极耐腐蚀，密度第二大。", C:"抗高温氧化。", B:"无。", U:"恐龙灭绝层(K-Pg界线证据)，火花塞电极，标准米尺。"},
+            78: {P:"灰白贵金属，延展性好。", C:"极惰性，高温下不氧化。", B:"顺铂用于癌症化疗。", U:"首饰，汽车催化转化器，心脏起搏器电极，燃料电池。"},
+            79: {P:"金黄色，延展性最好的金属(1克拉丝3公里)。", C:"极稳定，不氧化，只溶于王水。", B:"无毒，生物惰性，用于治疗关节炎。", U:"货币储备，珠宝，CPU针脚(防腐导电)，宇航员面罩镀层。"},
+            80: {P:"常温下唯一的液态金属，银白色。", C:"能溶解多种金属形成汞齐。", B:"剧毒(神经毒性)，生物累积。", U:"温度计(旧式)，日光灯管，补牙材料(银汞)，提炼金银。"},
+            81: {P:"蓝灰重金属，质软。", C:"硫酸铊无味。", B:"剧毒，导致脱发，阿加莎小说中的毒药。", U:"低熔点玻璃，红外光纤，鼠药(已禁用)，心脏扫描。"},
+            82: {P:"蓝灰重金属，质软，能阻挡辐射。", C:"表面生成氧化保护层。", B:"累积性神经毒素，损害儿童智力。", U:"汽车蓄电池，防辐射铅衣，子弹，水晶玻璃(含铅)。"},
+            83: {P:"银白微红金属，抗磁性最强。", C:"无毒(重金属中的例外)。", B:"杀死幽门螺杆菌。", U:"胃药(次水杨酸铋)，消防喷淋头(易熔合金)，化妆品。"},
+            84: {P:"银色金属，强放射性。", C:"衰变发热发光。", B:"剧毒，暗杀利特维年科的毒药。", U:"静电消除刷(工业用)，太空加热源，中子源。"},
+            85: {P:"极稀有的放射性元素。", C:"性质似碘但更金属性。", B:"聚积于甲状腺。", U:"靶向α粒子癌症治疗(实验性)。"},
+            86: {P:"无色放射性气体，密度大。", C:"衰变产生固体放射性尘埃。", B:"主要环境致癌物(肺癌)。", U:"癌症放疗(粒子植入)，地震预测(地下水氡浓度)。"},
+            87: {P:"极不稳定的碱金属。", C:"半衰期仅22分钟。", B:"无。", U:"基础物理研究，无商业用途。"},
+            88: {P:"银白色放射性金属，发光。", C:"性质似钡。", B:"沉积于骨骼导致骨癌。", U:"夜光表盘(旧式/居里夫人时代)，癌症放疗。"},
+            89: {P:"银白色强放射性金属。", C:"在暗处发蓝光。", B:"高毒性。", U:"中子源，靶向治癌(Ac-225)。"},
+            90: {P:"银白色金属，蕴藏量大。", C:"燃烧发白光。", B:"辐射危害。", U:"核反应堆燃料(钍基熔盐堆)，TIG焊电极，露营汽灯纱罩。"},
+            91: {P:"银灰色致密金属。", C:"剧毒。", B:"辐射。", U:"科研，测定地质年代。"},
+            92: {P:"银白重金属，天然放射性。", C:"粉末在空气中自燃。", B:"化学毒性伤肾，辐射致癌。", U:"核电站燃料，核武器(原子弹)，贫铀装甲/穿甲弹，玻璃着色。"},
+            93: {P:"银白色人造金属。", C:"核反应堆副产物。", B:"辐射。", U:"高能中子探测仪，生产钚-238的前体。"},
+            94: {P:"银白色放射性金属。", C:"因辐射衰变自身发热。", B:"极毒，聚集在骨骼中。", U:"核武器(胖子原子弹)，深空探测器核电池(旅行者号/火星车)。"},
+            95: {P:"银白色人造金属。", C:"强伽马射线源。", B:"辐射。", U:"家用烟雾报警器(Am-241)，工业测厚仪。"},
+            96: {P:"银白色金属，发紫光。", C:"强热源。", B:"辐射。", U:"火星车(APXS)X射线谱仪，心脏起搏器电池(旧)。"},
+            97: {P:"人造放射性金属。", C:"产量极少。", B:"辐射。", U:"合成更重元素的靶材。"},
+            98: {P:"银白色金属。", C:"极强的中子源。", B:"辐射。", U:"启动核反应堆的点火源，中子活化分析(找金矿/油井)。"},
+            99: {P:"人造放射性金属。", C:"半衰期短。", B:"辐射。", U:"基础科研，合成钔。"},
+            100: {P:"人造放射性金属。", C:"微量产生。", B:"辐射。", U:"无需发现的重元素(氢弹试爆中发现)。"},
+            101: {P:"人造放射性金属。", C:"纪念门捷列夫。", B:"辐射。", U:"第一个逐原子合成的元素。"},
+            102: {P:"人造放射性金属。", C:"极不稳定。", B:"辐射。", U:"科研。"},
+            103: {P:"人造放射性金属。", C:"锕系最后一种。", B:"辐射。", U:"科研。"},
+            104: {P:"人造超重元素。", C:"性质似铪。", B:"辐射致死。", U:"基础物理研究，半衰期仅1.3小时。"},
+            105: {P:"人造超重元素。", C:"性质似钽。", B:"辐射致死。", U:"基础物理研究。"},
+            106: {P:"人造超重元素。", C:"性质似钨。", B:"辐射致死。", U:"基础物理研究。"},
+            107: {P:"人造超重元素。", C:"性质似铼。", B:"辐射致死。", U:"基础物理研究。"},
+            108: {P:"人造超重元素。", C:"性质似锇。", B:"辐射致死。", U:"基础物理研究。"},
+            109: {P:"人造超重元素。", C:"性质似铱。", B:"辐射致死。", U:"基础物理研究。"},
+            110: {P:"人造超重元素。", C:"性质似铂。", B:"辐射致死。", U:"基础物理研究，单原子探测。"},
+            111: {P:"人造超重元素。", C:"性质似金。", B:"辐射致死。", U:"基础物理研究。"},
+            112: {P:"人造超重元素。", C:"性质似汞(可能液态)。", B:"辐射致死。", U:"基础物理研究。"},
+            113: {P:"人造超重元素。", C:"日本发现(Nihon)。", B:"辐射致死。", U:"基础物理研究。"},
+            114: {P:"人造超重元素。", C:"可能为气体。", B:"辐射致死。", U:"稳定岛理论探索。"},
+            115: {P:"人造超重元素。", C:"极不稳。", B:"辐射致死。", U:"基础物理研究，UFO阴谋论常客。"},
+            116: {P:"人造超重元素。", C:"极不稳。", B:"辐射致死。", U:"基础物理研究。"},
+            117: {P:"人造超重元素。", C:"可能是卤素。", B:"辐射致死。", U:"基础物理研究。"},
+            118: {P:"人造超重元素，最重。", C:"可能是固体稀有气体。", B:"辐射致死。", U:"元素周期表边界探索。"}
+        };
+
+        const grid = document.getElementById('grid');
+        const screen = document.getElementById('holo-screen');
+        let hoverTimer = null;
+
+        const db = [
+            [1,"H","Hydrogen","氢","1.008","nonmetal",1,1],[2,"He","Helium","氦","4.0026","noble",1,18],
+            [3,"Li","Lithium","锂","6.94","alkali",2,1],[4,"Be","Beryllium","铍","9.0122","alkaline",2,2],
+            [5,"B","Boron","硼","10.81","metalloid",2,13],[6,"C","Carbon","碳","12.011","nonmetal",2,14],
+            [7,"N","Nitrogen","氮","14.007","nonmetal",2,15],[8,"O","Oxygen","氧","15.999","nonmetal",2,16],
+            [9,"F","Fluorine","氟","18.998","halogen",2,17],[10,"Ne","Neon","氖","20.180","noble",2,18],
+            [11,"Na","Sodium","钠","22.990","alkali",3,1],[12,"Mg","Magnesium","镁","24.305","alkaline",3,2],
+            [13,"Al","Aluminium","铝","26.982","post-transition",3,13],[14,"Si","Silicon","硅","28.085","metalloid",3,14],
+            [15,"P","Phosphorus","磷","30.974","nonmetal",3,15],[16,"S","Sulfur","硫","32.06","nonmetal",3,16],
+            [17,"Cl","Chlorine","氯","35.45","halogen",3,17],[18,"Ar","Argon","氩","39.948","noble",3,18],
+            [19,"K","Potassium","钾","39.098","alkali",4,1],[20,"Ca","Calcium","钙","40.078","alkaline",4,2],
+            [21,"Sc","Scandium","钪","44.956","transition",4,3],[22,"Ti","Titanium","钛","47.867","transition",4,4],
+            [23,"V","Vanadium","钒","50.942","transition",4,5],[24,"Cr","Chromium","铬","51.996","transition",4,6],
+            [25,"Mn","Manganese","锰","54.938","transition",4,7],[26,"Fe","Iron","铁","55.845","transition",4,8],
+            [27,"Co","Cobalt","钴","58.933","transition",4,9],[28,"Ni","Nickel","镍","58.693","transition",4,10],
+            [29,"Cu","Copper","铜","63.546","transition",4,11],[30,"Zn","Zinc","锌","65.38","transition",4,12],
+            [31,"Ga","Gallium","镓","69.723","post-transition",4,13],[32,"Ge","Germanium","锗","72.630","metalloid",4,14],
+            [33,"As","Arsenic","砷","74.922","metalloid",4,15],[34,"Se","Selenium","硒","78.971","nonmetal",4,16],
+            [35,"Br","Bromine","溴","79.904","halogen",4,17],[36,"Kr","Krypton","氪","83.798","noble",4,18],
+            [37,"Rb","Rubidium","铷","85.468","alkali",5,1],[38,"Sr","Strontium","锶","87.62","alkaline",5,2],
+            [39,"Y","Yttrium","钇","88.906","transition",5,3],[40,"Zr","Zirconium","锆","91.224","transition",5,4],
+            [41,"Nb","Niobium","铌","92.906","transition",5,5],[42,"Mo","Molybdenum","钼","95.95","transition",5,6],
+            [43,"Tc","Technetium","锝","(98)","transition",5,7],[44,"Ru","Ruthenium","钌","101.07","transition",5,8],
+            [45,"Rh","Rhodium","铑","102.91","transition",5,9],[46,"Pd","Palladium","钯","106.42","transition",5,10],
+            [47,"Ag","Silver","银","107.87","transition",5,11],[48,"Cd","Cadmium","镉","112.41","transition",5,12],
+            [49,"In","Indium","铟","114.82","post-transition",5,13],[50,"Sn","Tin","锡","118.71","post-transition",5,14],
+            [51,"Sb","Antimony","锑","121.76","metalloid",5,15],[52,"Te","Tellurium","碲","127.60","metalloid",5,16],
+            [53,"I","Iodine","碘","126.90","halogen",5,17],[54,"Xe","Xenon","氙","131.29","noble",5,18],
+            [55,"Cs","Cesium","铯","132.91","alkali",6,1],[56,"Ba","Barium","钡","137.33","alkaline",6,2],
+            [57,"La","Lanthanum","镧","138.91","lanthanide",9,4],[58,"Ce","Cerium","铈","140.12","lanthanide",9,5],
+            [59,"Pr","Praseodymium","镨","140.91","lanthanide",9,6],[60,"Nd","Neodymium","钕","144.24","lanthanide",9,7],
+            [61,"Pm","Promethium","钷","(145)","lanthanide",9,8],[62,"Sm","Samarium","钐","150.36","lanthanide",9,9],
+            [63,"Eu","Europium","铕","151.96","lanthanide",9,10],[64,"Gd","Gadolinium","钆","157.25","lanthanide",9,11],
+            [65,"Tb","Terbium","铽","158.93","lanthanide",9,12],[66,"Dy","Dysprosium","镝","162.50","lanthanide",9,13],
+            [67,"Ho","Holmium","钬","164.93","lanthanide",9,14],[68,"Er","Erbium","铒","167.26","lanthanide",9,15],
+            [69,"Tm","Thulium","铥","168.93","lanthanide",9,16],[70,"Yb","Ytterbium","镱","173.05","lanthanide",9,17],
+            [71,"Lu","Lutetium","镥","174.97","lanthanide",9,18],
+            [72,"Hf","Hafnium","铪","178.49","transition",6,4],[73,"Ta","Tantalum","钽","180.95","transition",6,5],
+            [74,"W","Tungsten","钨","183.84","transition",6,6],[75,"Re","Rhenium","铼","186.21","transition",6,7],
+            [76,"Os","Osmium","锇","190.23","transition",6,8],[77,"Ir","Iridium","铱","192.22","transition",6,9],
+            [78,"Pt","Platinum","铂","195.08","transition",6,10],[79,"Au","Gold","金","196.97","transition",6,11],
+            [80,"Hg","Mercury","汞","200.59","transition",6,12],[81,"Tl","Thallium","铊","204.38","post-transition",6,13],
+            [82,"Pb","Lead","铅","207.2","post-transition",6,14],[83,"Bi","Bismuth","铋","208.98","post-transition",6,15],
+            [84,"Po","Polonium","钋","(209)","post-transition",6,16],[85,"At","Astatine","砹","(210)","halogen",6,17],
+            [86,"Rn","Radon","氡","(222)","noble",6,18],
+            [87,"Fr","Francium","钫","(223)","alkali",7,1],[88,"Ra","Radium","镭","(226)","alkaline",7,2],
+            [89,"Ac","Actinium","锕","(227)","actinide",10,4],[90,"Th","Thorium","钍","232.04","actinide",10,5],
+            [91,"Pa","Protactinium","镤","231.04","actinide",10,6],[92,"U","Uranium","铀","238.03","actinide",10,7],
+            [93,"Np","Neptunium","镎","(237)","actinide",10,8],[94,"Pu","Plutonium","钚","(244)","actinide",10,9],
+            [95,"Am","Americium","镅","(243)","actinide",10,10],[96,"Cm","Curium","锔","(247)","actinide",10,11],
+            [97,"Bk","Berkelium","锫","(247)","actinide",10,12],[98,"Cf","Californium","锎","(251)","actinide",10,13],
+            [99,"Es","Einsteinium","锿","(252)","actinide",10,14],[100,"Fm","Fermium","镄","(257)","actinide",10,15],
+            [101,"Md","Mendelevium","钔","(258)","actinide",10,16],[102,"No","Nobelium","锘","(259)","actinide",10,17],
+            [103,"Lr","Lawrencium","铹","(266)","actinide",10,18],
+            [104,"Rf","Rutherfordium","鑪","(267)","transition",7,4],[105,"Db","Dubnium","𨧀","(268)","transition",7,5],
+            [106,"Sg","Seaborgium","𨭎","(269)","transition",7,6],[107,"Bh","Bohrium","𨨏","(270)","transition",7,7],
+            [108,"Hs","Hassium","𨭆","(277)","transition",7,8],[109,"Mt","Meitnerium","䥑","(278)","transition",7,9],
+            [110,"Ds","Darmstadtium","鐽","(281)","transition",7,10],[111,"Rg","Roentgenium","錀","(282)","transition",7,11],
+            [112,"Cn","Copernicium","鎶","(285)","transition",7,12],[113,"Nh","Nihonium","鉨","(286)","post-transition",7,13],
+            [114,"Fl","Flerovium","鈇","(289)","post-transition",7,14],[115,"Mc","Moscovium","镆","(290)","post-transition",7,15],
+            [116,"Lv","Livermorium","鉝","(293)","post-transition",7,16],[117,"Ts","Tennessine","鿬","(294)","halogen",7,17],
+            [118,"Og","Oganesson","鿫","(294)","noble",7,18]
+        ];
+
+        db.forEach(el => {
+            const [z, sym, en, cn, mass, cat, r, c] = el;
+            const div = document.createElement('div');
+            div.className = `element cat-${cat}`;
+            div.style.gridRow = r;
+            div.style.gridColumn = c;
+            
+            div.innerHTML = `
+                <div class="top"><span>${z}</span><span>${mass}</span></div>
+                <div class="mid"><div class="symbol">${sym}</div></div>
+                <div class="bot"><span class="cn">${cn}</span></div>
+            `;
+
+            div.onmouseenter = () => {
+                if(hoverTimer) clearTimeout(hoverTimer);
+                hoverTimer = setTimeout(() => {
+                    const info = elementDetails[z] || {P:"未知", C:"未知", B:"未知", U:"科研"};
+                    document.getElementById('p-sym').innerText = sym;
+                    document.getElementById('p-cn').innerText = cn;
+                    document.getElementById('p-en').innerText = en.toUpperCase();
+                    document.getElementById('p-phys').innerText = info.P;
+                    document.getElementById('p-chem').innerText = info.C;
+                    document.getElementById('p-bio').innerText = info.B;
+                    document.getElementById('p-use').innerText = info.U;
+                    screen.classList.add('active');
+                }, 2000); 
+            };
+            
+            div.onmouseleave = () => {
+                if(hoverTimer) clearTimeout(hoverTimer);
+                screen.classList.remove('active');
+            };
+
+            div.onclick = () => {
+                window.open(`https://en.wikipedia.org/wiki/${en}`, '_blank');
+            };
+
+            grid.appendChild(div);
+        });
+
+        const createGap = (r,c,txt) => {
+            const d = document.createElement('div');
+            d.style.gridRow = r; d.style.gridColumn = c;
+            d.className = 'gap-label'; d.innerText = txt;
+            grid.appendChild(d);
+        }
+        createGap(6,3,'57-71'); createGap(7,3,'89-103');
+
+        document.addEventListener('mousemove', (e) => {
+            const x = (window.innerWidth / 2 - e.pageX) / 400; 
+            const y = (window.innerHeight / 2 - e.pageY) / 400;
+            document.querySelector('.scene').style.transform = `rotateX(${5 + y}deg) rotateY(${x}deg)`;
+        });
+
+    </script>
+</body>
+</html>
